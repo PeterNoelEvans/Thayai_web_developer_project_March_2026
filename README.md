@@ -1,7 +1,3 @@
-It is structured for a **student team using Node/Express + PostgreSQL**.
-
-You can copy this directly into your project.
-
 ---
 
 ````markdown
