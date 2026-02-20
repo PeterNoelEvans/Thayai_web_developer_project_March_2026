@@ -1,4 +1,3 @@
-Below is a clean, professional `README.md` suitable for your GitHub repository.
 It is structured for a **student team using Node/Express + PostgreSQL**.
 
 You can copy this directly into your project.
