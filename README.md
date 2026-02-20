@@ -1,5 +1,3 @@
----
-
 ````markdown
 # Restaurant QR Ordering System
 
