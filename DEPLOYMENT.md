@@ -1,5 +1,40 @@
 # Thayai Deployment & Workflow
 
+## Quick start (first time)
+
+1. **Create the database** (separate from LMS):
+   ```bash
+   createdb thayai_db
+   ```
+
+2. **Configure dev environment:**
+   ```bash
+   cd /mnt/LMS-database/repos/Thayai-dev/server
+   cp .env.example .env
+   # Edit .env: set DATABASE_URL for thayai_db, PORT=3201
+   ```
+
+3. **Run migrations:**
+   ```bash
+   cd /mnt/LMS-database/repos/Thayai-dev
+   npm run migrate
+   ```
+
+4. **Start dev server:**
+   ```bash
+   npm run dev
+   # API at http://localhost:3201
+   ```
+
+5. **Merge to production:** Create a PR on GitHub: `dev` → `main`, then merge. After that:
+   ```bash
+   cd /mnt/LMS-database/repos/Thayai-production
+   git pull origin main
+   npm install && cd server && npm install
+   ```
+
+---
+
 ## Folder layout
 
 | Folder | Purpose |
@@ -51,7 +86,7 @@ Thayai uses a separate PostgreSQL database from your LMS:
 | Service | Port | Notes |
 |---------|------|-------|
 | LMS | 3000, 3101 | Already in use |
-| **Thayai API** | **3200** | Default for this project |
+| **Thayai API** | **3201** | Default (change if needed) |
 
 ## Environment setup
 
@@ -73,7 +108,7 @@ cp .env.example .env
 
 ## Cloudflare tunnel
 
-Configure your tunnel to point to `localhost:3200` when serving Thayai production.
+Configure your tunnel to point to `localhost:3201` (or your chosen PORT) when serving Thayai production.
 
 ## Hat Yai deployment
 
