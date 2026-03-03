@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thayai Ice Cream - Order</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #fef7ed; }
+    h1 { color: #c2410c; margin-top: 0; }
+    h2 { font-size: 1rem; color: #6b7280; margin: 1rem 0 0.5rem; }
+    .step { margin-bottom: 1.5rem; }
+    .options { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .option { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; text-align: center; }
+    .option.selected { outline: 3px solid #c2410c; outline-offset: 2px; }
+    .option img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; background: #f3f4f6; }
+    .option h3 { margin: 0.5rem 0 0; font-size: 0.9rem; }
+    .option .price { color: #c2410c; font-weight: 600; font-size: 0.85rem; }
+    .toppings { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
+    .toppings .chip { background: white; border-radius: 12px; padding: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; text-align: center; }
+    .toppings .chip.selected { outline: 3px solid #c2410c; outline-offset: 2px; }
+    .toppings .chip img, .toppings .chip .placeholder { width: 100%; height: 70px; object-fit: cover; border-radius: 8px; background: #f3f4f6; display: block; }
+    .toppings .chip .name { font-size: 0.75rem; margin-top: 0.25rem; }
+    .toppings .chip .price { font-size: 0.7rem; color: #c2410c; font-weight: 600; }
+    .cart { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 1rem; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); }
+    .cart-items { max-height: 120px; overflow-y: auto; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .cart-total { font-weight: 700; font-size: 1.1rem; }
+    button { background: #c2410c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ticket { text-align: center; padding: 2rem; }
+    .ticket .queue { font-size: 3rem; font-weight: 800; color: #c2410c; }
+    .add-row { margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center; }
+    .placeholder { width: 100%; height: 100px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.8rem; }
+    .header { text-align: center; padding: 1rem 0 1.5rem; }
+    .header .logo { max-width: 180px; max-height: 80px; object-fit: contain; }
+    .header .logo-fallback { font-size: 1.5rem; color: #c2410c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <img src="/uploads/logo.png" alt="Thayai Ice Cream" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <span class="logo-fallback" style="display:none">Thayai Ice Cream</span>
+    </header>
+
+    <div id="builder">
+      <div class="step">
+        <h2>1. Choose cone size</h2>
+        <div id="cones" class="options"></div>
+      </div>
+      <div class="step">
+        <h2>2. Choose flavor</h2>
+        <div id="flavors" class="options"></div>
+      </div>
+      <div class="step">
+        <h2>3. Add toppings (optional)</h2>
+        <div id="toppings" class="toppings"></div>
+      </div>
+      <div class="add-row">
+        <button id="addBtn">Add to cart</button>
+      </div>
+    </div>
+
+    <div id="cart" class="cart" style="display:none">
+      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-total">Total: ฿<span id="cartTotal">0</span></div>
+      <button id="submitBtn">Place Order</button>
+    </div>
+
+    <div id="ticket" class="ticket" style="display:none">
+      <p>Your order is in the queue!</p>
+      <div class="queue" id="queueNum">-</div>
+      <p>Queue number</p>
+      <div class="total">Total: ฿<span id="ticketTotal">0</span></div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+    let menuData = { coneSizes: [], flavors: [], toppings: [] };
+    let cart = [];
+    const PLACEHOLDER = 'https://placehold.co/140x100/fef7ed/c2410c?text=+';
+
+    async function loadMenu() {
+      const r = await fetch(`${API}/menu`);
+      menuData = await r.json();
+      render();
+    }
+
+    function img(url) {
+      if (!url) return `<div class="placeholder">No image</div>`;
+      return `<img src="${url}" alt="" onerror="this.outerHTML='<div class=\\'placeholder\\'>No image</div>'">`;
+    }
+
+    function render() {
+      document.getElementById('cones').innerHTML = menuData.coneSizes.map(c => `
+        <div class="option" data-type="cone" data-id="${c.id}">
+          ${img(c.imageUrl)}
+          <h3>${c.name}</h3>
+          <div class="price">฿${(c.price / 100).toFixed(2)}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('flavors').innerHTML = menuData.flavors.map(f => `
+        <div class="option" data-type="flavor" data-id="${f.id}">
+          ${img(f.imageUrl)}
+          <h3>${f.name}</h3>
+          <div class="price">${f.price > 0 ? '฿' + (f.price / 100).toFixed(2) : 'Included'}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('toppings').innerHTML = menuData.toppings.map(t => `
+        <div class="chip" data-topping="${t.id}">
+          ${img(t.imageUrl)}
+          <div class="name">${t.name}</div>
+          <div class="price">+฿${(t.price/100).toFixed(2)}</div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('#cones .option, #flavors .option').forEach(el => {
+        el.addEventListener('click', () => {
+          el.parentElement.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+          el.classList.add('selected');
+        });
+      });
+
+      document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => chip.classList.toggle('selected'));
+      });
+    }
+
+    function getSelection() {
+      const cone = document.querySelector('#cones .option.selected');
+      const flavor = document.querySelector('#flavors .option.selected');
+      if (!cone || !flavor) return null;
+      const coneData = menuData.coneSizes.find(c => c.id === cone.dataset.id);
+      const flavorData = menuData.flavors.find(f => f.id === flavor.dataset.id);
+      const toppingChips = document.querySelectorAll('#toppings .chip.selected');
+      const toppings = [...toppingChips].map(chip => menuData.toppings.find(t => t.id === chip.dataset.topping)).filter(Boolean);
+      return { coneData, flavorData, toppings };
+    }
+
+    document.getElementById('addBtn').addEventListener('click', () => {
+      const sel = getSelection();
+      if (!sel) {
+        alert('Please select a cone size and flavor');
+        return;
+      }
+      const { coneData, flavorData, toppings } = sel;
+      const basePrice = coneData.price + flavorData.price;
+      const topPrice = toppings.reduce((s, t) => s + t.price, 0);
+      cart.push({
+        coneSizeId: coneData.id,
+        flavorId: flavorData.id,
+        coneSize: coneData,
+        flavor: flavorData,
+        qty: 1,
+        toppingIds: toppings.map(t => t.id),
+        toppings,
+      });
+      document.querySelectorAll('#toppings .chip').forEach(c => c.classList.remove('selected'));
+      updateCart();
+    });
+
+    function updateCart() {
+      document.getElementById('cart').style.display = cart.length ? 'block' : 'none';
+      const total = cart.reduce((sum, c) => {
+        const base = (c.coneSize.price + c.flavor.price) * c.qty;
+        const top = (c.toppings || []).reduce((s, t) => s + t.price, 0) * c.qty;
+        return sum + base + top;
+      }, 0);
+      document.getElementById('cartItems').innerHTML = cart.map((c, i) => {
+        const lineTotal = (c.coneSize.price + c.flavor.price + (c.toppings || []).reduce((s, t) => s + t.price, 0)) * c.qty;
+        const coneLabel = /cone|cup|waffle/i.test(c.coneSize.name) ? c.coneSize.name : c.coneSize.name + ' cone';
+        const toppingLabel = (c.toppings || []).length ? ' + ' + (c.toppings || []).map(t => t.name).join(', ') : '';
+        const label = `${coneLabel} + ${c.flavor.name}${toppingLabel}`;
+        return `<div>${c.qty}x ${label} ฿${(lineTotal/100).toFixed(2)} <button onclick="removeFromCart(${i})" style="background:#6b7280;padding:2px 6px;font-size:0.8rem">×</button></div>`;
+      }).join('');
+      document.getElementById('cartTotal').textContent = (total / 100).toFixed(2);
+    }
+
+    function removeFromCart(i) {
+      cart.splice(i, 1);
+      updateCart();
+    }
+
+    async function submitOrder() {
+      const payload = {
+        items: cart.map(c => ({
+          coneSizeId: c.coneSizeId,
+          flavorId: c.flavorId,
+          qty: c.qty,
+          toppingIds: c.toppingIds || [],
+        })),
+      };
+      const r = await fetch(`${API}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        alert(data.error || 'Order failed');
+        return;
+      }
+      document.getElementById('builder').style.display = 'none';
+      document.getElementById('cart').style.display = 'none';
+      document.getElementById('ticket').style.display = 'block';
+      document.getElementById('queueNum').textContent = data.queueNumber;
+      document.getElementById('ticketTotal').textContent = (data.totalPrice / 100).toFixed(2);
+      cart = [];
+    }
+
+    document.getElementById('submitBtn').addEventListener('click', submitOrder);
+    loadMenu();
+  </script>
+</body>
+</html>

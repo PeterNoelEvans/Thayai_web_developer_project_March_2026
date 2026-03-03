@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thayai Staff</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #1e293b; color: #f1f5f9; }
+    h1, h2 { color: #fbbf24; }
+    .section { background: #334155; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    .next-order { font-size: 1.2rem; }
+    .next-order .queue { font-size: 2rem; font-weight: 700; color: #fbbf24; }
+    button { background: #fbbf24; color: #1e293b; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-muted { background: #64748b; color: white; }
+    .order-items { list-style: none; padding: 0; }
+    .order-items li { padding: 0.25rem 0; border-bottom: 1px solid #475569; }
+    .queue-list { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .queue-badge { background: #475569; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.9rem; }
+    .queue-badge.waiting { background: #f59e0b; color: #1e293b; }
+    .add-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+    .add-form input { padding: 0.5rem; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #f1f5f9; }
+    .add-form input[type="number"] { width: 80px; }
+    .item-list { list-style: none; padding: 0; }
+    .item-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #475569; }
+    .item-row img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #475569; }
+    .item-row .name { flex: 1; }
+    .item-row .price { color: #fbbf24; min-width: 60px; }
+    .item-row.inactive { opacity: 0.5; }
+    .item-row .actions { display: flex; gap: 0.25rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab { padding: 0.5rem 1rem; background: #475569; border-radius: 8px; cursor: pointer; }
+    .tab.active { background: #fbbf24; color: #1e293b; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    input[type="file"] { font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>Thayai Staff</h1>
+
+  <div class="section">
+    <h2>Orders</h2>
+    <div id="nextOrder" class="next-order"><p>No orders waiting.</p></div>
+    <button id="callBtn" disabled>Call Next</button>
+    <div style="margin-top: 1rem;">
+      <strong>Waiting:</strong>
+      <div id="queueList" class="queue-list"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Manage menu</h2>
+    <p style="font-size:0.9rem;color:#94a3b8;margin:0 0 1rem 0;">
+      <strong>Not available</strong> = hide from customer menu (can restore). <strong>Delete</strong> = remove from system.
+    </p>
+    <div class="tabs">
+      <span class="tab active" data-tab="cones">Cone sizes</span>
+      <span class="tab" data-tab="flavors">Flavors</span>
+      <span class="tab" data-tab="toppings">Toppings</span>
+    </div>
+
+    <div id="cones" class="tab-content active">
+      <div class="add-form">
+        <input type="text" id="coneName" placeholder="Name (e.g. Small Cone)">
+        <input type="number" id="conePrice" placeholder="Price (฿)" step="0.01" min="0">
+        <button id="addConeBtn">Add</button>
+      </div>
+      <ul id="coneList" class="item-list"></ul>
+    </div>
+
+    <div id="flavors" class="tab-content">
+      <div class="add-form">
+        <input type="text" id="flavorName" placeholder="Name (e.g. Vanilla)">
+        <input type="number" id="flavorPrice" placeholder="Price (฿)" step="0.01" min="0">
+        <button id="addFlavorBtn">Add</button>
+      </div>
+      <ul id="flavorList" class="item-list"></ul>
+    </div>
+
+    <div id="toppings" class="tab-content">
+      <div class="add-form">
+        <input type="text" id="toppingName" placeholder="Name (e.g. Sprinkles)">
+        <input type="number" id="toppingPrice" placeholder="Price (฿)" step="0.01" min="0">
+        <button id="addToppingBtn">Add</button>
+      </div>
+      <ul id="toppingList" class="item-list"></ul>
+    </div>
+    <div style="margin-top:1rem;">
+      <button class="btn-danger" id="clearUnusedBtn">Clear all unused items</button>
+      <span style="font-size:0.85rem;color:#94a3b8;margin-left:0.5rem;">Removes items not in any order</span>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+    const ADMIN = '/api/admin';
+    let nextOrderId = null;
+
+    function formatPrice(cents) { return '฿' + (cents / 100).toFixed(2); }
+
+    function itemRow(item, type) {
+      const img = item.imageUrl
+        ? `<img src="${item.imageUrl}" alt="">`
+        : '<div style="width:48px;height:48px;background:#475569;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#94a3b8">No img</div>';
+      const statusBtn = item.isActive
+        ? `<button class="btn-sm btn-muted unavailable-btn" data-type="${type}" data-id="${item.id}">Not available</button>`
+        : `<button class="btn-sm available-btn" data-type="${type}" data-id="${item.id}">Available</button>`;
+      return `
+        <li class="item-row ${item.isActive ? '' : 'inactive'}" data-id="${item.id}">
+          ${img}
+          <span class="name">${item.name}</span>
+          <span class="price">${formatPrice(item.price)}</span>
+          <div class="actions">
+            <input type="file" accept="image/*" data-type="${type}" data-id="${item.id}" data-name="${item.name}" class="img-input" style="display:none">
+            <button class="btn-sm upload-btn" data-type="${type}" data-id="${item.id}" data-name="${item.name}">📷</button>
+            ${statusBtn}
+            <button class="btn-sm btn-danger delete-btn" data-type="${type}" data-id="${item.id}" title="Remove from system">Delete</button>
+          </div>
+        </li>
+      `;
+    }
+
+    async function loadCones() {
+      const r = await fetch(`${ADMIN}/cones`);
+      const items = await r.json();
+      document.getElementById('coneList').innerHTML = items.map(i => itemRow(i, 'cone')).join('');
+      bindRowEvents();
+    }
+
+    async function loadFlavors() {
+      const r = await fetch(`${ADMIN}/flavors`);
+      const items = await r.json();
+      document.getElementById('flavorList').innerHTML = items.map(i => itemRow(i, 'flavor')).join('');
+      bindRowEvents();
+    }
+
+    async function loadToppings() {
+      const r = await fetch(`${ADMIN}/toppings`);
+      const items = await r.json();
+      document.getElementById('toppingList').innerHTML = items.map(i => itemRow(i, 'topping')).join('');
+      bindRowEvents();
+    }
+
+    function bindRowEvents() {
+      document.querySelectorAll('.upload-btn').forEach(btn => {
+        btn.onclick = () => btn.parentElement.querySelector('.img-input').click();
+      });
+      document.querySelectorAll('.img-input').forEach(input => {
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const type = input.dataset.type;
+          const id = input.dataset.id;
+          const name = input.dataset.name;
+          const fd = new FormData();
+          fd.append('image', file);
+          fd.append('type', type);
+          fd.append(type === 'cone' ? 'coneSizeId' : type === 'flavor' ? 'flavorId' : 'toppingId', id);
+          fd.append('slug', name);
+          const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+          if (r.ok) {
+            loadCones();
+            loadFlavors();
+            loadToppings();
+          } else {
+            alert((await r.json()).error || 'Upload failed');
+          }
+          input.value = '';
+        };
+      });
+      document.querySelectorAll('.unavailable-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const type = btn.dataset.type;
+          const id = btn.dataset.id;
+          const r = await fetch(`${ADMIN}/${type}s/${id}/unavailable`, { method: 'PATCH' });
+          if (r.ok) {
+            loadCones();
+            loadFlavors();
+            loadToppings();
+          }
+        };
+      });
+      document.querySelectorAll('.available-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const type = btn.dataset.type;
+          const id = btn.dataset.id;
+          const r = await fetch(`${ADMIN}/${type}s/${id}/available`, { method: 'PATCH' });
+          if (r.ok) {
+            loadCones();
+            loadFlavors();
+            loadToppings();
+          }
+        };
+      });
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Permanently remove this item from the system? This cannot be undone.')) return;
+          const type = btn.dataset.type;
+          const id = btn.dataset.id;
+          const r = await fetch(`${ADMIN}/${type}s/${id}`, { method: 'DELETE' });
+          const data = await r.json();
+          if (r.ok) {
+            loadCones();
+            loadFlavors();
+            loadToppings();
+          } else {
+            alert(data.error || 'Failed');
+          }
+        };
+      });
+    }
+
+    async function addCone() {
+      const name = document.getElementById('coneName').value.trim();
+      const price = document.getElementById('conePrice').value;
+      if (!name || price === '') { alert('Name and price required'); return; }
+      const r = await fetch(`${ADMIN}/cones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price: parseFloat(price) || 0 }),
+      });
+      if (r.ok) {
+        document.getElementById('coneName').value = '';
+        document.getElementById('conePrice').value = '';
+        loadCones();
+      } else {
+        alert((await r.json()).error || 'Failed');
+      }
+    }
+
+    async function addFlavor() {
+      const name = document.getElementById('flavorName').value.trim();
+      const price = document.getElementById('flavorPrice').value;
+      if (!name || price === '') { alert('Name and price required'); return; }
+      const r = await fetch(`${ADMIN}/flavors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price: parseFloat(price) || 0 }),
+      });
+      if (r.ok) {
+        document.getElementById('flavorName').value = '';
+        document.getElementById('flavorPrice').value = '';
+        loadFlavors();
+      } else {
+        alert((await r.json()).error || 'Failed');
+      }
+    }
+
+    async function addTopping() {
+      const name = document.getElementById('toppingName').value.trim();
+      const price = document.getElementById('toppingPrice').value;
+      if (!name || price === '') { alert('Name and price required'); return; }
+      const r = await fetch(`${ADMIN}/toppings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price: parseFloat(price) || 0 }),
+      });
+      if (r.ok) {
+        document.getElementById('toppingName').value = '';
+        document.getElementById('toppingPrice').value = '';
+        loadToppings();
+      } else {
+        alert((await r.json()).error || 'Failed');
+      }
+    }
+
+    async function loadNext() {
+      const r = await fetch(`${API}/orders/next`);
+      const order = await r.json();
+      const el = document.getElementById('nextOrder');
+      const btn = document.getElementById('callBtn');
+      if (order && order.id) {
+        nextOrderId = order.id;
+        el.innerHTML = `
+          <div class="queue">#${order.queueNumber}</div>
+          <ul class="order-items">
+            ${(order.orderItems || []).map(oi => `
+              <li>${oi.qty}x ${oi.coneSize?.name || ''} + ${oi.flavor?.name || ''}
+                ${oi.toppings?.length ? ' + ' + oi.toppings.map(t => t.topping?.name).join(', ') : ''}
+              </li>
+            `).join('')}
+          </ul>
+          <p>Total: ${formatPrice(order.totalPrice)}</p>
+        `;
+        btn.disabled = false;
+      } else {
+        nextOrderId = null;
+        el.innerHTML = '<p>No orders waiting.</p>';
+        btn.disabled = true;
+      }
+    }
+
+    async function callNext() {
+      if (!nextOrderId) return;
+      const r = await fetch(`${API}/orders/${nextOrderId}/call`, { method: 'POST' });
+      if (r.ok) { loadNext(); loadQueue(); }
+    }
+
+    async function loadQueue() {
+      const r = await fetch(`${API}/orders?status=waiting`);
+      const orders = await r.json();
+      document.getElementById('queueList').innerHTML = orders
+        .map(o => `<span class="queue-badge waiting">#${o.queueNumber}</span>`)
+        .join('') || '<span style="color:#94a3b8">Empty</span>';
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      };
+    });
+
+    document.getElementById('callBtn').onclick = callNext;
+    document.getElementById('addConeBtn').onclick = addCone;
+    document.getElementById('addFlavorBtn').onclick = addFlavor;
+    document.getElementById('addToppingBtn').onclick = addTopping;
+    document.getElementById('clearUnusedBtn').onclick = async () => {
+      if (!confirm('Remove all cone sizes, flavors, and toppings that have never been used in an order?')) return;
+      const r = await fetch(`${ADMIN}/clear-unused`, { method: 'POST' });
+      if (r.ok) {
+        loadCones();
+        loadFlavors();
+        loadToppings();
+      } else {
+        alert((await r.json()).error || 'Failed');
+      }
+    };
+
+    loadCones();
+    loadFlavors();
+    loadToppings();
+    loadNext();
+    loadQueue();
+    setInterval(loadNext, 5000);
+    setInterval(loadQueue, 5000);
+  </script>
+</body>
+</html>

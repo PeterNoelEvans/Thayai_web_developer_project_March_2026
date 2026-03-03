@@ -7,6 +7,7 @@
     "dev": "cd server && npm run dev",
     "start": "cd server && npm start",
     "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run db:seed",
     "db:create": "cd server && npm run db:create"
   },
   "engines": {

@@ -1,0 +1,79 @@
+// Thayai Ice Cream Queue - Prisma Schema
+// Structure: Cone (size) + Flavor + Toppings
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ConeSize {
+  id        String   @id @default(uuid())
+  name      String   // Small Cone, Medium Cone, Large Cone
+  price     Int      // price in cents
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  orderItems OrderItem[]
+}
+
+model Flavor {
+  id        String   @id @default(uuid())
+  name      String   // Vanilla, Chocolate, Strawberry, Mango, Matcha, etc.
+  price     Int      // price in cents
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  orderItems OrderItem[]
+}
+
+model Topping {
+  id        String   @id @default(uuid())
+  name      String
+  price     Int
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  orderItemToppings OrderItemTopping[]
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  queueNumber Int      @unique
+  status      String   @default("waiting")
+  totalPrice  Int
+  createdAt   DateTime @default(now())
+  orderItems  OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  coneSizeId  String
+  flavorId    String
+  qty         Int      @default(1)
+  conePrice   Int      // snapshot
+  flavorPrice Int      // snapshot
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coneSize    ConeSize @relation(fields: [coneSizeId], references: [id])
+  flavor      Flavor   @relation(fields: [flavorId], references: [id])
+  toppings    OrderItemTopping[]
+}
+
+model OrderItemTopping {
+  id         String   @id @default(uuid())
+  orderItemId String
+  toppingId   String
+  qty         Int     @default(1)
+  unitPrice   Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  topping     Topping   @relation(fields: [toppingId], references: [id])
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}

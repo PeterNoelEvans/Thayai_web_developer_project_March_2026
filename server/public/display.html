@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Now Serving - Thayai</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0f172a; color: white; }
+    .display { text-align: center; padding: 2rem; }
+    .label { font-size: 1.5rem; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 0.5rem; }
+    .number { font-size: 8rem; font-weight: 800; color: #fbbf24; line-height: 1; text-shadow: 0 0 40px rgba(251, 191, 36, 0.3); }
+  </style>
+</head>
+<body>
+  <div class="display">
+    <div class="label">NOW SERVING</div>
+    <div class="number" id="queueNum">-</div>
+  </div>
+
+  <script>
+    async function load() {
+      const r = await fetch('/api/now-serving');
+      const data = await r.json();
+      document.getElementById('queueNum').textContent = data.nowServingQueueNumber || '-';
+    }
+    load();
+    setInterval(load, 3000);
+  </script>
+</body>
+</html>

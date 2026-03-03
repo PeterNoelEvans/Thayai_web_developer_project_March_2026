@@ -20,13 +20,22 @@
    npm run migrate
    ```
 
-4. **Start dev server:**
+4. **Seed (settings only):**
    ```bash
-   npm run dev
-   # API at http://localhost:3201
+   npm run seed
    ```
 
-5. **Merge to production:** Create a PR on GitHub: `dev` → `main`, then merge. After that:
+5. **Add menu items via Staff page:** Open staff.html and add cone sizes, flavors, and toppings. Upload images for each.
+
+6. **Start dev server:**
+   ```bash
+   npm run dev
+   ```
+   - Customer menu: http://localhost:3201/
+   - Staff dashboard: http://localhost:3201/staff.html
+   - Display (Now Serving): http://localhost:3201/display.html
+
+7. **Merge to production:** Create a PR on GitHub: `dev` → `main`, then merge. After that:
    ```bash
    cd /mnt/LMS-database/repos/Thayai-production
    git pull origin main
